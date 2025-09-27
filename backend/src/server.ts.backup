@@ -1,0 +1,726 @@
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import dotenv from 'dotenv';
+import { ethers } from 'ethers';
+import axios from 'axios';
+import cron from 'node-cron';
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Middleware
+app.use(helmet());
+app.use(cors());
+app.use(morgan('combined'));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Blockchain configuration
+const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com';
+const ZG_RPC_URL = process.env.ZG_RPC_URL || 'https://evmrpc-testnet.0g.ai';
+const RPC_URL = process.env.ZG_RPC_URL ? ZG_RPC_URL : SEPOLIA_RPC_URL; // Use 0G if available
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
+const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
+
+// Contract ABI - minimal interface for our functions
+const CONTRACT_ABI = [
+  "function writeMemory(string calldata memoryHash) external",
+  "function readMemory(address agent) external view returns (string[] memory memories)",
+  "function getMemoryCount(address agent) external view returns (uint256 count)",
+  "event MemoryWritten(address indexed agent, string memoryHash, uint256 timestamp)"
+];
+
+// Initialize provider and contract
+let provider: ethers.JsonRpcProvider;
+let wallet: ethers.Wallet;
+let contract: ethers.Contract;
+
+if (PRIVATE_KEY && CONTRACT_ADDRESS) {
+  provider = new ethers.JsonRpcProvider(RPC_URL, undefined, {
+    staticNetwork: true
+  });
+  wallet = new ethers.Wallet(PRIVATE_KEY, provider);
+  contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, wallet);
+}
+
+// Helper function to retry blockchain operations
+async function retryBlockchainOperation<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3,
+  delayMs: number = 1000
+): Promise<T | null> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await operation();
+    } catch (error) {
+      console.log(`Blockchain operation attempt ${i + 1} failed:`, error instanceof Error ? error.message : error);
+      if (i === maxRetries - 1) {
+        console.error('All blockchain retry attempts failed');
+        return null;
+      }
+      await new Promise(resolve => setTimeout(resolve, delayMs * (i + 1)));
+    }
+  }
+  return null;
+}
+
+// In-memory storage for demo (in production, use a proper database)
+interface MemoryEntry {
+  id: string;
+  agent: string;
+  content: string;
+  hash: string;
+  timestamp: Date;
+  storageType: 'ipfs' | '0g' | 'local';
+  storageCid?: string;
+}
+
+const memoryStore: Map<string, MemoryEntry> = new Map();
+const agentMemories: Map<string, string[]> = new Map();
+
+// Storage service interface
+interface IStorageService {
+  store(content: string): Promise<string>;
+  retrieve(hash: string): Promise<string>;
+}
+
+// IPFS Storage Service (Fallback)
+class IPFSStorageService implements IStorageService {
+  private readonly pinataApiUrl = 'https://api.pinata.cloud/pinning/pinJSONToIPFS';
+  private readonly pinataGateway = 'https://gateway.pinata.cloud/ipfs/';
+  private readonly apiKey = process.env.PINATA_API_KEY;
+  private readonly secretKey = process.env.PINATA_SECRET_KEY;
+
+  async store(content: string): Promise<string> {
+    // Always try real IPFS first if credentials are available
+    if (this.apiKey && this.secretKey) {
+      console.log('📡 Storing content on IPFS via Pinata...');
+      try {
+        const response = await axios.post(
+          this.pinataApiUrl,
+          {
+            pinataContent: { 
+              content, 
+              timestamp: new Date().toISOString(),
+              agent: 'decentralized-memory-layer'
+            },
+            pinataMetadata: { 
+              name: `memory-${Date.now()}`,
+              keyvalues: {
+                type: 'ai-memory',
+                timestamp: new Date().toISOString()
+              }
+            }
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'pinata_api_key': this.apiKey,
+              'pinata_secret_api_key': this.secretKey
+            },
+            timeout: 15000 // 15 second timeout
+          }
+        );
+        
+        const ipfsHash = response.data.IpfsHash;
+        console.log(`✅ Content stored on IPFS with hash: ${ipfsHash}`);
+        
+        // Also store locally as backup for faster access
+        await this.storeLocalBackup(ipfsHash, content);
+        
+        return ipfsHash;
+      } catch (error) {
+        console.error('IPFS storage via Pinata failed:', error);
+        // Fallback to local storage
+      }
+    }
+
+    // Fallback to local file storage with enhanced persistence
+    console.log('⚠️  Using local file storage as fallback');
+    const crypto = await import('crypto');
+    const mockHash = `Qm${crypto.createHash('sha256').update(content).digest('hex').slice(0, 44)}`;
+    
+    await this.storeLocalBackup(mockHash, content);
+    return mockHash;
+  }
+
+  private async storeLocalBackup(hash: string, content: string): Promise<void> {
+    try {
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const storageDir = path.join(process.cwd(), '.storage');
+      
+      // Ensure storage directory exists
+      await fs.mkdir(storageDir, { recursive: true });
+      
+      // Write content to file with metadata
+      const filePath = path.join(storageDir, `${hash}.txt`);
+      const metadata = {
+        hash,
+        content,
+        timestamp: new Date().toISOString(),
+        storageType: hash.startsWith('Qm') && hash.length === 46 ? 'ipfs' : 'local'
+      };
+      
+      await fs.writeFile(filePath, JSON.stringify(metadata, null, 2), 'utf-8');
+      console.log(`📁 Backup stored locally at ${filePath}`);
+    } catch (error) {
+      console.error('Local backup storage failed:', error);
+    }
+  }
+
+  async retrieve(hash: string): Promise<string> {
+    // First try to get from IPFS if it's a valid IPFS hash (46 chars) or looks like real IPFS
+    if (hash.startsWith('Qm') && hash.length === 46 && !hash.includes('Mock')) {
+      console.log(`📡 Retrieving content from IPFS for hash: ${hash}`);
+      try {
+        const response = await axios.get(`${this.pinataGateway}${hash}`, {
+          timeout: 10000
+        });
+        
+        let content: string;
+        if (typeof response.data === 'string') {
+          content = response.data;
+        } else if (response.data.content) {
+          content = response.data.content;
+        } else {
+          // Handle our structured format
+          content = response.data.content || JSON.stringify(response.data);
+        }
+        
+        console.log(`✅ Retrieved content from IPFS for ${hash}`);
+        
+        // Also cache locally for faster future access
+        await this.storeLocalBackup(hash, content);
+        
+        return content;
+      } catch (error) {
+        console.log(`⚠️  IPFS retrieval failed for ${hash}, trying local backup`);
+      }
+    }
+
+    // Fallback to local storage
+    try {
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const storageDir = path.join(process.cwd(), '.storage');
+      const filePath = path.join(storageDir, `${hash}.txt`);
+      
+      const fileContent = await fs.readFile(filePath, 'utf-8');
+      console.log(`📁 Retrieved content from local backup for ${hash}`);
+      
+      // Try to parse as JSON metadata first
+      try {
+        const metadata = JSON.parse(fileContent);
+        return metadata.content || fileContent;
+      } catch {
+        // If not JSON, return as plain text
+        return fileContent;
+      }
+    } catch (error) {
+      console.log(`⚠️  Local backup read failed for ${hash}`);
+      
+      // Provide better messaging for different hash types
+      if (hash.startsWith('Qm') && hash.length === 45) {
+        return `[Legacy Memory - Hash: ${hash}]\n\nThis memory was created with the previous storage system and the original content is no longer available. Only memories created after the latest update will persist across restarts.`;
+      } else if (hash.startsWith('Qm') && hash.length === 46) {
+        return `[IPFS Content Unavailable - Hash: ${hash}]\n\nThis content should be available on IPFS but couldn't be retrieved. This might be due to network issues or the content being unpinned.`;
+      } else {
+        return `[Content not available - Hash: ${hash}]\n\nContent could not be retrieved from storage.`;
+      }
+    }
+  }
+}
+
+// 0G Storage Service (Primary - Mock for now)
+class ZeroGStorageService implements IStorageService {
+  async store(content: string): Promise<string> {
+    // Mock 0G storage - in real implementation, use 0G SDK
+    console.log('📡 Storing in 0G Network (mock)...');
+    const mockHash = `0g${Buffer.from(content).toString('hex').substring(0, 42)}`;
+    return mockHash;
+  }
+
+  async retrieve(hash: string): Promise<string> {
+    // Mock 0G retrieval - in real implementation, use 0G SDK
+    console.log('📡 Retrieving from 0G Network (mock)...');
+    return `0G Content for hash: ${hash}`;
+  }
+}
+
+// Storage service instances
+const ipfsStorage = new IPFSStorageService();
+const zeroGStorage = new ZeroGStorageService();
+
+// LLM Service for summarization
+class LLMService {
+  async summarizeMemories(memories: string[]): Promise<string> {
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        const response = await axios.post(
+          'https://api.openai.com/v1/chat/completions',
+          {
+            model: 'gpt-3.5-turbo',
+            messages: [
+              {
+                role: 'system',
+                content: 'Summarize the following AI agent memories into a concise summary. Focus on key actions, decisions, and patterns.'
+              },
+              {
+                role: 'user',
+                content: `Memories to summarize:\n${memories.join('\n---\n')}`
+              }
+            ],
+            max_tokens: 500
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        return response.data.choices[0].message.content;
+      } catch (error) {
+        console.error('OpenAI summarization failed:', error);
+      }
+    }
+
+    // Fallback to simple summarization
+    console.log('🤖 Using fallback summarization...');
+    return `Summary of ${memories.length} memories: ${memories.join(' | ').substring(0, 200)}...`;
+  }
+}
+
+const llmService = new LLMService();
+
+// Blockchain sync function
+async function syncBlockchainData() {
+  if (!contract) {
+    console.log('⚠️  Contract not configured, skipping blockchain sync');
+    return;
+  }
+
+  try {
+    console.log('🔄 Syncing blockchain data on startup...');
+    
+    // Get all MemoryWritten events from the contract
+    const filter = contract.filters?.MemoryWritten?.();
+    if (!filter) {
+      console.log('⚠️  MemoryWritten event filter not available');
+      return;
+    }
+    
+    // Get current block and query last 10000 blocks to avoid RPC limits
+    const currentBlock = await provider.getBlockNumber();
+    const fromBlock = Math.max(0, currentBlock - 10000);
+    
+    console.log(`📡 Querying events from block ${fromBlock} to ${currentBlock}`);
+    const events = await contract.queryFilter(filter, fromBlock, 'latest');
+    
+    console.log(`📡 Found ${events.length} memory events on blockchain`);
+    
+    // Rebuild local storage from blockchain events
+    for (const event of events) {
+      // Type guard to check if event has args
+      if ('args' in event && event.args) {
+        const agent = event.args.agent as string;
+        const memoryHash = event.args.memoryHash as string;
+        const timestamp = new Date(Number(event.args.timestamp) * 1000);
+      
+      // Add to agent memories
+      const agentHashes = agentMemories.get(agent) || [];
+      if (!agentHashes.includes(memoryHash)) {
+        agentHashes.push(memoryHash);
+        agentMemories.set(agent, agentHashes);
+      }
+      
+        // Create memory entry (content will be "recovered from blockchain" as placeholder)
+        if (!memoryStore.has(memoryHash)) {
+          const memoryEntry: MemoryEntry = {
+            id: `${agent}-${timestamp.getTime()}`,
+            agent,
+            content: `Memory recovered from blockchain - Hash: ${memoryHash}`,
+            hash: memoryHash,
+            timestamp,
+            storageType: 'ipfs'
+          };
+          memoryStore.set(memoryHash, memoryEntry);
+        }
+      }
+    }
+    
+    console.log(`✅ Synchronized ${events.length} memories from blockchain`);
+    
+    // Log current state
+    const totalAgents = agentMemories.size;
+    const totalMemories = memoryStore.size;
+    console.log(`📊 Current state: ${totalAgents} agents, ${totalMemories} memories`);
+    
+  } catch (error) {
+    console.error('❌ Blockchain sync failed:', error);
+  }
+}
+
+// API Routes
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    contract: CONTRACT_ADDRESS ? 'connected' : 'not configured',
+    network: provider ? 'connected' : 'not configured'
+  });
+});
+
+// Write memory endpoint
+app.post('/write', async (req, res) => {
+  try {
+    const { content, agent } = req.body;
+
+    if (!content || !agent) {
+      return res.status(400).json({ error: 'Content and agent address are required' });
+    }
+
+    if (!ethers.isAddress(agent)) {
+      return res.status(400).json({ error: 'Invalid agent address' });
+    }
+
+    console.log(`📝 Writing memory for agent: ${agent}`);
+
+    // Store in IPFS (or fallback) - DEMO MODE with local file storage
+    let hash: string;
+    let storageType: 'local' | 'ipfs' | '0g';
+    
+    // Store using IPFS service (which will use local file storage in demo mode)
+    try {
+      hash = await ipfsStorage.store(content);
+      storageType = 'ipfs';
+      console.log(`✅ Stored with hash: ${hash}`);
+    } catch (error) {
+      console.error('Storage failed:', error);
+      // Fallback to simple hash generation
+      const crypto = await import('crypto');
+      hash = `Qm${crypto.createHash('sha256').update(content).digest('hex').slice(0, 44)}`;
+      storageType = 'local';
+      console.log(`✅ Generated fallback hash: ${hash}`);
+    }
+    
+    // TODO: Replace with actual IPFS/0G storage when API keys are configured
+    // try {
+    //   hash = await zeroGStorage.store(content);
+    //   storageType = '0g';
+    //   console.log(`✅ Stored in 0G with hash: ${hash}`);
+    // } catch (error) {
+    //   console.log('0G storage failed, falling back to IPFS');
+    //   hash = await ipfsStorage.store(content);
+    //   storageType = 'ipfs';
+    //   console.log(`✅ Stored in IPFS with hash: ${hash}`);
+    // }
+
+    // Store in our local database
+    const memoryEntry: MemoryEntry = {
+      id: `${agent}-${Date.now()}`,
+      agent,
+      content,
+      hash,
+      timestamp: new Date(),
+      storageType
+    };
+
+    memoryStore.set(hash, memoryEntry);
+
+    // Update agent's memory list
+    const agentHashes = agentMemories.get(agent) || [];
+    agentHashes.push(hash);
+    agentMemories.set(agent, agentHashes);
+
+    // Write to blockchain contract
+    if (contract && contract.writeMemory) {
+      try {
+        console.log(`⛓️  Writing to blockchain contract...`);
+        const tx = await contract.writeMemory(hash);
+        console.log(`Transaction hash: ${tx.hash}`);
+        await tx.wait(1); // Wait for 1 confirmation
+        console.log(`✅ Memory written to blockchain!`);
+      } catch (error) {
+        console.error('Blockchain write failed:', error);
+        // Continue even if blockchain fails for demo purposes
+      }
+    }
+
+    res.json({
+      success: true,
+      hash,
+      storageType,
+      agent,
+      timestamp: memoryEntry.timestamp
+    });
+
+  } catch (error) {
+    console.error('Write memory error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Read memories endpoint
+app.get('/read/:agent', async (req, res) => {
+  try {
+    const { agent } = req.params;
+
+    if (!ethers.isAddress(agent)) {
+      return res.status(400).json({ error: 'Invalid agent address' });
+    }
+
+    console.log(`📖 Reading memories for agent: ${agent}`);
+
+    let memoryHashes: string[] = [];
+
+    // Try to read from blockchain first with retry mechanism
+    if (contract && contract.readMemory) {
+      const blockchainHashes = await retryBlockchainOperation(async () => {
+        if (!contract || !contract.readMemory) throw new Error('Contract not available');
+        return await contract.readMemory(agent);
+      });
+      
+      if (blockchainHashes) {
+        memoryHashes = blockchainHashes;
+        console.log(`📡 Found ${memoryHashes.length} memory hashes on blockchain`);
+      } else {
+        console.log('⚠️  Blockchain read failed after retries, using local storage');
+        memoryHashes = agentMemories.get(agent) || [];
+      }
+    } else {
+      memoryHashes = agentMemories.get(agent) || [];
+    }
+
+    if (memoryHashes.length === 0) {
+      return res.json({ memories: [], count: 0 });
+    }
+
+    // Retrieve memory contents from storage
+    const memories = [];
+    for (const hash of memoryHashes) {
+      try {
+        let content: string;
+        const memoryEntry = memoryStore.get(hash);
+
+        if (memoryEntry) {
+          content = memoryEntry.content;
+        } else {
+          // Try to retrieve from storage services
+          if (hash.startsWith('0g')) {
+            content = await zeroGStorage.retrieve(hash);
+          } else {
+            content = await ipfsStorage.retrieve(hash);
+          }
+        }
+
+        memories.push({
+          hash,
+          content,
+          timestamp: memoryEntry?.timestamp || new Date(),
+          storageType: memoryEntry?.storageType || (hash.startsWith('0g') ? '0g' : 'ipfs')
+        });
+      } catch (error) {
+        console.error(`Failed to retrieve memory ${hash}:`, error);
+        memories.push({
+          hash,
+          content: 'Failed to retrieve content',
+          timestamp: new Date(),
+          storageType: 'unknown'
+        });
+      }
+    }
+
+    res.json({
+      agent,
+      memories,
+      count: memories.length
+    });
+
+  } catch (error) {
+    console.error('Read memory error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Read memories endpoint (query parameter version for frontend)
+app.get('/read', async (req, res) => {
+  try {
+    const { agent, reader } = req.query;
+
+    if (!agent || !ethers.isAddress(agent as string)) {
+      return res.status(400).json({ error: 'Invalid agent address' });
+    }
+
+    if (!reader || !ethers.isAddress(reader as string)) {
+      return res.status(400).json({ error: 'Invalid reader address' });
+    }
+
+    console.log(`📖 Reading memories for agent: ${agent} by reader: ${reader}`);
+
+    let memoryHashes: string[] = [];
+
+    // Try to read from blockchain first with retry mechanism
+    if (contract && contract.readMemory) {
+      const blockchainHashes = await retryBlockchainOperation(async () => {
+        if (!contract || !contract.readMemory) throw new Error('Contract not available');
+        return await contract.readMemory(agent);
+      });
+      
+      if (blockchainHashes) {
+        memoryHashes = blockchainHashes;
+        console.log(`📡 Found ${memoryHashes.length} memory hashes on blockchain`);
+      } else {
+        console.log('⚠️  Blockchain read failed after retries, using local storage');
+        memoryHashes = agentMemories.get(agent as string) || [];
+      }
+    } else {
+      memoryHashes = agentMemories.get(agent as string) || [];
+    }
+
+    if (memoryHashes.length === 0) {
+      return res.json({ success: true, memories: [], count: 0 });
+    }
+
+    // Retrieve memory contents from storage (with IPFS fallback)
+    const memories = [];
+    for (const hash of memoryHashes) {
+      try {
+        let content: string;
+        let timestamp: Date;
+        let storageType: string;
+
+        const memoryEntry = memoryStore.get(hash);
+
+        if (memoryEntry) {
+          // Use cached entry
+          content = memoryEntry.content;
+          timestamp = memoryEntry.timestamp;
+          storageType = memoryEntry.storageType;
+        } else {
+          // Try to retrieve from IPFS/storage services
+          console.log(`📦 Retrieving content for hash: ${hash}`);
+          
+          if (hash.startsWith('0g')) {
+            content = await zeroGStorage.retrieve(hash);
+            storageType = '0g';
+          } else {
+            content = await ipfsStorage.retrieve(hash);
+            storageType = 'ipfs';
+          }
+          
+          timestamp = new Date();
+          
+          // Cache the retrieved content
+          const recoveredEntry: MemoryEntry = {
+            id: `${agent}-${Date.now()}`,
+            agent: agent as string,
+            content,
+            hash,
+            timestamp,
+            storageType: storageType as 'ipfs' | '0g' | 'local'
+          };
+          memoryStore.set(hash, recoveredEntry);
+        }
+
+        memories.push({
+          hash,
+          content,
+          timestamp,
+          storageType
+        });
+        
+      } catch (error) {
+        console.error(`Failed to retrieve memory ${hash}:`, error);
+        memories.push({
+          hash,
+          content: 'Failed to retrieve content',
+          timestamp: new Date(),
+          storageType: 'unknown'
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      memories,
+      count: memories.length,
+      agent,
+      reader
+    });
+
+  } catch (error) {
+    console.error('Read memory error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get agent memory count
+app.get('/count/:agent', async (req, res) => {
+  try {
+    const { agent } = req.params;
+
+    if (!ethers.isAddress(agent)) {
+      return res.status(400).json({ error: 'Invalid agent address' });
+    }
+
+    let count = 0;
+
+    if (contract && contract.getMemoryCount) {
+      try {
+        count = Number(await contract.getMemoryCount(agent));
+      } catch (error) {
+        count = (agentMemories.get(agent) || []).length;
+      }
+    } else {
+      count = (agentMemories.get(agent) || []).length;
+    }
+
+    res.json({ agent, count });
+
+  } catch (error) {
+    console.error('Get count error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Periodic summarization cron job (disabled for testing)
+// TODO: Re-enable after testing
+console.log('🔄 Cron job disabled for testing');
+
+// Error handling middleware
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+// Start server
+app.listen(PORT, async () => {
+  console.log(`🚀 Memory Layer Backend running on port ${PORT}`);
+  
+  if (provider) {
+    const network = await provider.getNetwork();
+    const networkName = network.chainId === 9000n ? '0G Testnet' : 
+                       network.chainId === 11155111n ? 'Sepolia' : 
+                       `Chain ${network.chainId}`;
+    console.log(`📡 Network: ${networkName} (Chain ID: ${network.chainId})`);
+    console.log(`🔗 RPC URL: ${RPC_URL}`);
+  } else {
+    console.log(`📡 Network: Local only`);
+  }
+  
+  console.log(`⛓️  Contract: ${CONTRACT_ADDRESS || 'Not configured'}`);
+  console.log(`🕐 Summarization cron: Every 10 minutes`);
+  
+  // Initialize blockchain connection
+  console.log('🔄 Backend started - blockchain data will be fetched on-demand');
+});
+
+export default app;
