@@ -41,7 +41,7 @@ export function WriteMemory() {
     } catch (error: unknown) {
       console.error('Error writing memory:', error)
       const errorMessage = error instanceof Error && 'response' in error 
-        ? (error as any).response?.data?.error || 'Failed to store memory. Please try again.'
+        ? (error as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to store memory. Please try again.'
         : 'Failed to store memory. Please try again.'
       setMessage({ 
         type: 'error', 
@@ -59,7 +59,7 @@ export function WriteMemory() {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <p className="text-blue-800 text-sm font-medium">💡 Connect Wallet Required</p>
           <p className="text-blue-700 text-sm mt-1">
-            Please connect your wallet using the "Connect Wallet" button in the top navigation to store memories.
+            Please connect your wallet using the &quot;Connect Wallet&quot; button in the top navigation to store memories.
           </p>
         </div>
       </div>
