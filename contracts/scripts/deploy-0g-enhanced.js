@@ -187,7 +187,7 @@ async function saveDeploymentInfo(contractAddress, deployer, network, deployment
 CONTRACT_ADDRESS=${contractAddress}
 ZG_RPC_URL=${ZG_TESTNET_RPC}
 NETWORK_NAME=0G Testnet
-CHAIN_ID=9000
+CHAIN_ID=16602
 `;
   
   const envPath = path.join(process.cwd(), '0g-deployment.env');
@@ -205,17 +205,17 @@ function printNextSteps(contractAddress) {
   console.log(`   📝 Edit backend/.env and add:`);
   console.log(`   CONTRACT_ADDRESS=${contractAddress}`);
   console.log(`   ZG_RPC_URL=${ZG_TESTNET_RPC}`);
-  console.log(`   CHAIN_ID=9000`);
+  console.log(`   CHAIN_ID=16602`);
   
   console.log('\n2️⃣  UPDATE FRONTEND CONFIGURATION:');
   console.log(`   📝 Edit frontend/.env.local and add:`);
   console.log(`   NEXT_PUBLIC_CONTRACT_ADDRESS=${contractAddress}`);
   console.log(`   NEXT_PUBLIC_ZG_RPC_URL=${ZG_TESTNET_RPC}`);
-  console.log(`   NEXT_PUBLIC_CHAIN_ID=9000`);
+  console.log(`   NEXT_PUBLIC_CHAIN_ID=16602`);
   
   console.log('\n3️⃣  VERIFY FRONTEND WAGMI CONFIG:');
   console.log(`   📝 Ensure frontend/src/lib/wagmi.ts includes 0G testnet`);
-  console.log(`   🔗 Chain ID: 9000`);
+  console.log(`   🔗 Chain ID: 16602`);
   console.log(`   🔗 RPC URL: ${ZG_TESTNET_RPC}`);
   
   console.log('\n4️⃣  GET TESTNET TOKENS:');

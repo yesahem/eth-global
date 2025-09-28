@@ -22,7 +22,7 @@ export default {
       type: "http",
       url: process.env.ZG_RPC_URL || "https://evmrpc-testnet.0g.ai",
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
-      chainId: 16602, // Updated to actual 0G testnet chain ID
+      chainId: 16602, // Correct 0G testnet chain ID
       gasPrice: 20000000000, // 20 gwei
       gas: 6000000,
       timeout: 60000,
