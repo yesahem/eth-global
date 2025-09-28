@@ -76,7 +76,7 @@ export function NavbarWalletConnection() {
           <span className="hidden sm:inline">{hasMinBalance ? '✅ Full Access' : '❌ Write Only'}</span>
           <span className="sm:hidden">{hasMinBalance ? '✅ Full' : '❌ Write'}</span>
         </div>
-        
+      
         {/* Disconnect Button */}
         <button
           onClick={() => disconnect()}
@@ -100,7 +100,7 @@ export function NavbarWalletConnection() {
         disabled={isPending || !connectors[0]}
         className={`btn-ornate px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm ${isPending ? 'loading-ornate' : ''}`}
       >
-        <span className="hidden sm:inline">{isPending ? 'Connecting...' : 'Connect Wallet'}</span>
+        <span className="border-2 p-3 rounded-xl w-full hidden sm:inline text-black" >{isPending ? 'Connecting...' : 'Connect Wallet'}</span>
         <span className="sm:hidden">{isPending ? 'Connecting...' : 'Connect'}</span>
       </button>
     </div>

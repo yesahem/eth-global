@@ -53,7 +53,7 @@ export default function Home() {
                 <div className="ornate-step">1</div>
               </div>
               <div>
-                <h4 className="text-lg sm:text-xl font-serif font-semibold mb-2 sm:mb-3" style={{ color: 'var(--mahogany-700)' }}>
+                <h4 className="text-lg sm:text-xl font-serif font-semibold mb-2 sm:mb-3 " style={{ color: 'var(--mahogany-700)' }}>
                   Connect Wallet
                 </h4>
                 <p className="font-sans text-sm sm:text-base leading-relaxed" style={{ color: 'var(--vintage-neutral-600)' }}>

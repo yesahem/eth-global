@@ -1,47 +1,55 @@
-import { http, createConfig, createStorage, cookieStorage } from 'wagmi'
-import { sepolia, localhost } from 'wagmi/chains'
-import { injected, metaMask } from 'wagmi/connectors'
-import { defineChain } from 'viem'
+import { http, createConfig } from 'wagmi'
+import { sepolia, mainnet, polygon, arbitrum } from 'wagmi/chains'
+import { injected, metaMask, walletConnect, coinbaseWallet } from 'wagmi/connectors'
 
-// Define 0G Testnet chain
-export const zgTestnet = defineChain({
-  id: 9000,
+// Define 0G testnet
+export const zgTestnet = {
+  id: 16602,
   name: '0G Testnet',
+  network: '0g-testnet',
   nativeCurrency: {
     decimals: 18,
     name: '0G',
     symbol: '0G',
   },
   rpcUrls: {
-    default: {
-      http: ['https://evmrpc-testnet.0g.ai'],
-    },
+    default: { http: ['https://evmrpc-testnet.0g.ai'] },
+    public: { http: ['https://evmrpc-testnet.0g.ai'] },
   },
   blockExplorers: {
-    default: {
-      name: '0G Explorer',
-      url: 'https://chainscan-newton.0g.ai',
-    },
+    default: { name: '0G Explorer', url: 'https://explorer-testnet.0g.ai' },
   },
   testnet: true,
-})
+} as const
+
+// Configure WalletConnect project ID (you should get this from https://cloud.walletconnect.com)
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'demo-project-id'
 
 export const config = createConfig({
-  chains: [zgTestnet, sepolia, localhost],
+  chains: [sepolia, zgTestnet, mainnet, polygon, arbitrum],
   connectors: [
-    injected({ 
-      target: 'metaMask',
-    }),
+    injected(),
     metaMask(),
+    walletConnect({ 
+      projectId,
+      metadata: {
+        name: 'Decentralized Memory Layer',
+        description: 'Web3 + AI Decentralized Memory Layer for AI agents',
+        url: 'https://memory-layer.app',
+        icons: ['https://memory-layer.app/icon.png']
+      }
+    }),
+    coinbaseWallet({
+      appName: 'Decentralized Memory Layer',
+      appLogoUrl: 'https://memory-layer.app/icon.png',
+    }),
   ],
-  storage: createStorage({
-    storage: typeof window !== 'undefined' ? window.localStorage : cookieStorage,
-  }),
-  ssr: true,
   transports: {
+    [sepolia.id]: http(),
     [zgTestnet.id]: http('https://evmrpc-testnet.0g.ai'),
-    [sepolia.id]: http('https://ethereum-sepolia-rpc.publicnode.com'),
-    [localhost.id]: http('http://127.0.0.1:8545'),
+    [mainnet.id]: http(),
+    [polygon.id]: http(),
+    [arbitrum.id]: http(),
   },
 })
 
