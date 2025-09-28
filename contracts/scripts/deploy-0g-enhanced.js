@@ -241,6 +241,7 @@ async function main() {
     
     // Step 2: Create provider and wallet
     const provider = new ethers.JsonRpcProvider(process.env.ZG_RPC_URL || ZG_TESTNET_RPC);
+    console.log("private key = ", process.env.PRIVATE_KEY)
     const deployer = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
     
     // Step 3: Validate network
