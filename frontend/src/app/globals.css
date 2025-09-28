@@ -1,26 +1,511 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
+/* VINTAGE DESIGN SYSTEM - COLOR PALETTE */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Primary Vintage Colors */
+  --vintage-burgundy: hsl(0, 100%, 27%);       /* #8B0000 */
+  --vintage-mahogany: hsl(25, 76%, 31%);       /* #8B4513 */
+  --vintage-cream: hsl(60, 56%, 91%);          /* #F5F5DC */
+  --vintage-gold: hsl(51, 100%, 50%);          /* #FFD700 */
+  
+  /* Extended HSL Color Tokens - 50+ Semantic Colors */
+  --burgundy-50: hsl(0, 100%, 97%);
+  --burgundy-100: hsl(0, 100%, 92%);
+  --burgundy-200: hsl(0, 100%, 84%);
+  --burgundy-300: hsl(0, 100%, 71%);
+  --burgundy-400: hsl(0, 100%, 58%);
+  --burgundy-500: hsl(0, 100%, 45%);
+  --burgundy-600: hsl(0, 100%, 36%);
+  --burgundy-700: hsl(0, 100%, 27%);
+  --burgundy-800: hsl(0, 100%, 18%);
+  --burgundy-900: hsl(0, 100%, 9%);
+  
+  --mahogany-50: hsl(25, 76%, 96%);
+  --mahogany-100: hsl(25, 76%, 89%);
+  --mahogany-200: hsl(25, 76%, 78%);
+  --mahogany-300: hsl(25, 76%, 64%);
+  --mahogany-400: hsl(25, 76%, 50%);
+  --mahogany-500: hsl(25, 76%, 40%);
+  --mahogany-600: hsl(25, 76%, 31%);
+  --mahogany-700: hsl(25, 76%, 24%);
+  --mahogany-800: hsl(25, 76%, 16%);
+  --mahogany-900: hsl(25, 76%, 8%);
+  
+  --cream-50: hsl(60, 56%, 98%);
+  --cream-100: hsl(60, 56%, 94%);
+  --cream-200: hsl(60, 56%, 91%);
+  --cream-300: hsl(60, 56%, 85%);
+  --cream-400: hsl(60, 56%, 78%);
+  --cream-500: hsl(60, 56%, 71%);
+  --cream-600: hsl(60, 56%, 64%);
+  --cream-700: hsl(60, 56%, 57%);
+  --cream-800: hsl(60, 56%, 45%);
+  --cream-900: hsl(60, 56%, 32%);
+  
+  --gold-50: hsl(51, 100%, 97%);
+  --gold-100: hsl(51, 100%, 92%);
+  --gold-200: hsl(51, 100%, 84%);
+  --gold-300: hsl(51, 100%, 71%);
+  --gold-400: hsl(51, 100%, 63%);
+  --gold-500: hsl(51, 100%, 50%);
+  --gold-600: hsl(51, 100%, 42%);
+  --gold-700: hsl(51, 100%, 35%);
+  --gold-800: hsl(51, 100%, 28%);
+  --gold-900: hsl(51, 100%, 21%);
+  
+  /* Neutral Vintage Tones */
+  --vintage-neutral-50: hsl(45, 29%, 97%);
+  --vintage-neutral-100: hsl(45, 29%, 92%);
+  --vintage-neutral-200: hsl(45, 29%, 81%);
+  --vintage-neutral-300: hsl(45, 29%, 70%);
+  --vintage-neutral-400: hsl(45, 29%, 58%);
+  --vintage-neutral-500: hsl(45, 29%, 46%);
+  --vintage-neutral-600: hsl(45, 29%, 37%);
+  --vintage-neutral-700: hsl(45, 29%, 28%);
+  --vintage-neutral-800: hsl(45, 29%, 19%);
+  --vintage-neutral-900: hsl(45, 29%, 10%);
+  
+  /* Semantic Color Assignments */
+  --primary: var(--vintage-burgundy);
+  --primary-light: var(--burgundy-100);
+  --primary-dark: var(--burgundy-800);
+  --secondary: var(--vintage-mahogany);
+  --accent: var(--vintage-gold);
+  --background: var(--vintage-cream);
+  --foreground: var(--vintage-neutral-800);
+  --muted: var(--vintage-neutral-300);
+  --border: var(--vintage-neutral-200);
+  
+  /* Typography */
+  --font-serif: 'Playfair Display', serif;
+  --font-sans: 'Inter', sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* VINTAGE GRADIENTS */
+.gradient-vintage {
+  background: linear-gradient(135deg, 
+    var(--burgundy-700) 0%, 
+    var(--mahogany-600) 50%, 
+    var(--burgundy-800) 100%);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+.gradient-paper {
+  background: radial-gradient(ellipse at center, 
+    var(--cream-50) 0%, 
+    var(--cream-200) 70%, 
+    var(--cream-300) 100%);
+}
+
+.gradient-gold {
+  background: linear-gradient(135deg, 
+    var(--gold-300) 0%, 
+    var(--gold-500) 50%, 
+    var(--gold-600) 100%);
+}
+
+.gradient-ornate {
+  background: linear-gradient(45deg, 
+    var(--burgundy-600) 0%, 
+    var(--gold-400) 25%, 
+    var(--mahogany-500) 50%, 
+    var(--gold-400) 75%, 
+    var(--burgundy-600) 100%);
+}
+
+/* VINTAGE SHADOWS */
+.shadow-elegant {
+  box-shadow: 
+    0 2px 8px hsla(0, 100%, 27%, 0.1),
+    0 1px 3px hsla(0, 100%, 27%, 0.08);
+}
+
+.shadow-vintage {
+  box-shadow: 
+    0 4px 20px hsla(0, 100%, 27%, 0.15),
+    0 2px 8px hsla(25, 76%, 31%, 0.1),
+    inset 0 1px 0 hsla(51, 100%, 50%, 0.2);
+}
+
+.shadow-ornate {
+  box-shadow: 
+    0 8px 32px hsla(0, 100%, 27%, 0.2),
+    0 4px 16px hsla(25, 76%, 31%, 0.15),
+    0 2px 8px hsla(0, 100%, 27%, 0.1),
+    inset 0 1px 0 hsla(51, 100%, 50%, 0.3);
+}
+
+/* VINTAGE ANIMATIONS */
+@keyframes vintage-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
+@keyframes ornate-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px var(--gold-400);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--gold-400), 0 0 30px var(--gold-300);
+  }
+}
+
+@keyframes elegant-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.02);
+    opacity: 0.9;
+  }
+}
+
+/* TYPOGRAPHY CLASSES */
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+/* VINTAGE COMPONENT CLASSES */
+.vintage-card {
+  background: var(--background);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .vintage-card {
+    border-radius: 12px;
+  }
+}
+
+.vintage-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--gradient-paper);
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+.vintage-card:hover {
+  transform: scale(1.02);
+  border-color: var(--gold-400);
+  box-shadow: var(--shadow-vintage);
+}
+
+.vintage-step-card {
+  background: var(--background);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  padding: 1rem;
+  text-align: center;
+  animation: vintage-fade 0.6s ease-out;
+}
+
+@media (min-width: 640px) {
+  .vintage-step-card {
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .vintage-step-card {
+    padding: 2rem;
+  }
+}
+
+.vintage-step-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--gradient-paper);
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+.vintage-step-card:hover {
+  transform: scale(1.02);
+  border-color: var(--gold-400);
+  box-shadow: var(--shadow-vintage);
+}
+
+.vintage-step-card:nth-child(1) { animation-delay: 0.2s; }
+.vintage-step-card:nth-child(2) { animation-delay: 0.4s; }
+.vintage-step-card:nth-child(3) { animation-delay: 0.6s; }
+.vintage-step-card:nth-child(4) { animation-delay: 0.8s; }
+
+.vintage-alert {
+  background: var(--background);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  padding: 1rem 1.5rem;
+  border-left: 4px solid var(--accent);
+}
+
+.vintage-alert::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--gradient-paper);
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+.vintage-alert.success {
+  border-left-color: hsl(120, 60%, 50%);
+  background: hsl(120, 60%, 97%);
+}
+
+.vintage-alert.error {
+  border-left-color: hsl(0, 70%, 50%);
+  background: hsl(0, 70%, 97%);
+}
+
+.vintage-alert.warning {
+  border-left-color: hsl(38, 92%, 50%);
+  background: hsl(38, 92%, 97%);
+}
+
+/* ORNATE STEP NUMBERS */
+.ornate-step {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--gradient-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--burgundy-800);
+  box-shadow: var(--shadow-elegant);
+  position: relative;
+  overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .ornate-step {
+    width: 3rem;
+    height: 3rem;
+    font-size: 1.125rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .ornate-step {
+    font-size: 1.25rem;
+  }
+}
+
+.ornate-step::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, transparent 30%, hsla(51, 100%, 80%, 0.3) 70%);
+  pointer-events: none;
+}
+
+/* RESPONSIVE UTILITIES */
+.responsive-text-xs { font-size: 0.75rem; }
+.responsive-text-sm { font-size: 0.875rem; }
+.responsive-text-base { font-size: 1rem; }
+
+@media (min-width: 640px) {
+  .responsive-text-xs { font-size: 0.875rem; }
+  .responsive-text-sm { font-size: 1rem; }
+  .responsive-text-base { font-size: 1.125rem; }
+}
+
+@media (min-width: 768px) {
+  .responsive-text-xs { font-size: 1rem; }
+  .responsive-text-sm { font-size: 1.125rem; }
+  .responsive-text-base { font-size: 1.25rem; }
+}
+
+/* BUTTON VARIANTS */
+.btn-vintage {
+  padding: 0.5rem 1.5rem;
+  border-radius: 6px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  border: none;
+  font-size: 0.875rem;
+}
+
+@media (min-width: 640px) {
+  .btn-vintage {
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    font-size: 1rem;
+  }
+}
+
+.btn-vintage::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, hsla(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn-vintage:hover::before {
+  left: 100%;
+}
+
+.btn-elegant {
+  padding: 0.75rem 2rem;
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  border: none;
+  background: var(--primary);
+  color: var(--cream-50);
+  box-shadow: var(--shadow-elegant);
+}
+
+.btn-elegant::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, hsla(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn-elegant:hover::before {
+  left: 100%;
+}
+
+.btn-elegant:hover {
+  background: var(--burgundy-600);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-vintage);
+}
+
+.btn-elegant:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-ornate {
+  padding: 0.75rem 2rem;
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  border: none;
+  background: var(--gradient-ornate);
+  color: var(--cream-50);
+  box-shadow: var(--shadow-ornate);
+  animation: elegant-pulse 3s infinite;
+}
+
+.btn-ornate::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, hsla(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn-ornate:hover::before {
+  left: 100%;
+}
+
+.btn-ornate:hover {
+  animation: ornate-glow 1.5s infinite;
+  transform: translateY(-3px);
+}
+
+/* LOADING STATES */
+.loading-ornate {
+  animation: ornate-glow 1.5s infinite;
+}
+
+.loading-elegant {
+  animation: elegant-pulse 2s infinite;
+}
+
+/* BASE STYLES */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  line-height: 1.6;
+}
+
+/* STAGGERED ENTRANCE ANIMATIONS */
+.stagger-delay-1 { animation-delay: 0.2s; }
+.stagger-delay-2 { animation-delay: 0.4s; }
+.stagger-delay-3 { animation-delay: 0.6s; }
+.stagger-delay-4 { animation-delay: 0.8s; }
+
+/* FOCUS STATES FOR ACCESSIBILITY */
+*:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button:focus, 
+input:focus, 
+textarea:focus {
+  outline-color: var(--primary);
 }

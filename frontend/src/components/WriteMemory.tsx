@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAccount } from 'wagmi'
 import axios from 'axios'
 
@@ -9,6 +9,23 @@ export function WriteMemory() {
   const [memory, setMemory] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return (
+      <div className="vintage-card shadow-vintage p-4 sm:p-6 md:p-8">
+        <div className="animate-pulse">
+          <div className="h-4 sm:h-6 bg-gray-200 rounded w-3/4 mb-3 sm:mb-4"></div>
+          <div className="h-24 sm:h-32 bg-gray-200 rounded mb-3 sm:mb-4"></div>
+          <div className="h-8 sm:h-10 bg-gray-200 rounded w-full"></div>
+        </div>
+      </div>
+    )
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,11 +71,15 @@ export function WriteMemory() {
 
   if (!isConnected) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow-lg">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Write Memory</h2>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-blue-800 text-sm font-medium">💡 Connect Wallet Required</p>
-          <p className="text-blue-700 text-sm mt-1">
+      <div className="vintage-card shadow-vintage p-4 sm:p-6 md:p-8">
+        <h2 className="text-xl sm:text-2xl font-serif font-bold mb-4 sm:mb-6" style={{ color: 'var(--primary)' }}>
+          Write Memory
+        </h2>
+        <div className="vintage-alert" style={{ borderLeftColor: 'var(--gold-500)', background: 'var(--gold-50)' }}>
+          <p className="font-serif font-semibold text-base sm:text-lg" style={{ color: 'var(--gold-700)' }}>
+            💡 Connect Wallet Required
+          </p>
+          <p className="font-sans mt-2" style={{ color: 'var(--gold-600)' }}>
             Please connect your wallet using the &quot;Connect Wallet&quot; button in the top navigation to store memories.
           </p>
         </div>
@@ -67,27 +88,36 @@ export function WriteMemory() {
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-lg">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">Write Memory</h2>
-      <p className="text-gray-600 mb-4">
+    <div className="vintage-card shadow-vintage p-4 sm:p-6 md:p-8">
+      <h2 className="text-xl sm:text-2xl font-serif font-bold mb-4 sm:mb-6" style={{ color: 'var(--primary)' }}>
+        Write Memory
+      </h2>
+      <p className="font-sans text-sm sm:text-base md:text-lg mb-4 sm:mb-6" style={{ color: 'var(--vintage-neutral-700)' }}>
         Store a memory in the decentralized memory layer. It will be stored on IPFS and referenced on the blockchain.
       </p>
       
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
         <div>
-          <label htmlFor="memory" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="memory" className="block font-serif font-semibold text-base sm:text-lg mb-2 sm:mb-3" style={{ color: 'var(--mahogany-600)' }}>
             Memory Content
           </label>
           <textarea
             id="memory"
             value={memory}
             onChange={(e) => setMemory(e.target.value)}
-            rows={6}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+            rows={4}
+            className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 rounded-lg font-sans resize-none transition-all duration-300 text-sm sm:text-base"
+            style={{ 
+              borderColor: 'var(--border)',
+              background: 'var(--cream-50)',
+              color: 'var(--foreground)'
+            }}
             placeholder="Enter your memory here... (e.g., learned about React hooks, completed project milestone, etc.)"
             disabled={isLoading}
+            onFocus={(e) => e.target.style.borderColor = 'var(--gold-400)'}
+            onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
           />
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="font-sans text-xs sm:text-sm mt-2" style={{ color: 'var(--vintage-neutral-500)' }}>
             Characters: {memory.length} | Agent: {address?.slice(0, 6)}...{address?.slice(-4)}
           </p>
         </div>
@@ -95,7 +125,7 @@ export function WriteMemory() {
         <button
           type="submit"
           disabled={isLoading || !memory.trim()}
-          className="w-full px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className={`w-full btn-ornate border-amber-500 border-2 ${isLoading ? 'loading-ornate' : ''}`}
         >
           {isLoading ? (
             <div className="flex items-center justify-center">
@@ -103,20 +133,17 @@ export function WriteMemory() {
               Storing Memory...
             </div>
           ) : (
-            'Store Memory'
+            <div className="flex items-center justify-center text-black ">
+              
+              Store Memory
+            </div>
           )}
         </button>
       </form>
 
       {message && (
-        <div className={`mt-4 p-3 rounded-lg ${
-          message.type === 'success' 
-            ? 'bg-green-50 border border-green-200' 
-            : 'bg-red-50 border border-red-200'
-        }`}>
-          <p className={`text-sm font-medium ${
-            message.type === 'success' ? 'text-green-800' : 'text-red-800'
-          }`}>
+        <div className={`vintage-alert mt-6 ${message.type}`}>
+          <p className="font-serif font-semibold text-lg">
             {message.type === 'success' ? '✅' : '❌'} {message.text}
           </p>
         </div>

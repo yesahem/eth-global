@@ -1,6 +1,6 @@
-import { http, createConfig } from 'wagmi'
+import { http, createConfig, createStorage, cookieStorage } from 'wagmi'
 import { sepolia, localhost } from 'wagmi/chains'
-import { injected } from 'wagmi/connectors'
+import { injected, metaMask } from 'wagmi/connectors'
 import { defineChain } from 'viem'
 
 // Define 0G Testnet chain
@@ -29,8 +29,15 @@ export const zgTestnet = defineChain({
 export const config = createConfig({
   chains: [zgTestnet, sepolia, localhost],
   connectors: [
-    injected(),
+    injected({ 
+      target: 'metaMask',
+    }),
+    metaMask(),
   ],
+  storage: createStorage({
+    storage: typeof window !== 'undefined' ? window.localStorage : cookieStorage,
+  }),
+  ssr: true,
   transports: {
     [zgTestnet.id]: http('https://evmrpc-testnet.0g.ai'),
     [sepolia.id]: http('https://ethereum-sepolia-rpc.publicnode.com'),
