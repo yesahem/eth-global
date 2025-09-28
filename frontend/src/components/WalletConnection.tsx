@@ -4,11 +4,12 @@ import { useAccount, useConnect, useDisconnect, useBalance, useConnectors, useCh
 import { useEffect, useState } from 'react'
 import { sepolia, mainnet, polygon, arbitrum } from 'viem/chains'
 import { zgTestnet } from '@/lib/wagmi'
+import { Connector } from 'wagmi'
 
 // Types for managing multiple wallets
 interface ConnectedWallet {
   address: string
-  connector: any
+  connector: Connector
   name: string
   isActive: boolean
   balance?: string
@@ -71,7 +72,7 @@ export function WalletConnection() {
         setActiveWalletIndex(updatedWallets.length)
       } else {
         // Update active wallet
-        setConnectedWallets(prev => prev.map((w, index) => ({
+        setConnectedWallets(prev => prev.map((w) => ({
           ...w,
           isActive: w.address === address,
           balance: w.address === address ? balance?.formatted : w.balance
@@ -80,7 +81,7 @@ export function WalletConnection() {
         if (activeIndex !== -1) setActiveWalletIndex(activeIndex)
       }
     }
-  }, [isConnected, address, connector, balance])
+  }, [isConnected, address, connector, balance, connectedWallets])
 
   // Helper functions
   const getWalletMetadata = (name: string) => {
@@ -97,33 +98,33 @@ export function WalletConnection() {
     
     switch (connectorName) {
       case 'MetaMask':
-        return !!(window as any).ethereum?.isMetaMask
+        return !!(window as Window & { ethereum?: { isMetaMask?: boolean } }).ethereum?.isMetaMask
       case 'Coinbase Wallet':
-        return !!(window as any).ethereum?.isCoinbaseWallet
+        return !!(window as Window & { ethereum?: { isCoinbaseWallet?: boolean } }).ethereum?.isCoinbaseWallet
       default:
         return true
     }
   }
 
-  const handleConnect = async (connector: any) => {
+  const handleConnect = async (connector: Connector) => {
     try {
       setConnectionError(null)
       await connect({ connector })
       setShowWalletModal(false)
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Connection error:', error)
-      setConnectionError(error.message || 'Failed to connect wallet')
+      setConnectionError(error instanceof Error ? error.message : 'Failed to connect wallet')
     }
   }
 
-  const handleConnectAdditional = async (connector: any) => {
+  const handleConnectAdditional = async (connector: Connector) => {
     try {
       setConnectionError(null)
       await connect({ connector })
       setShowWalletModal(false)
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Connection error:', error)
-      setConnectionError(error.message || 'Failed to connect additional wallet')
+      setConnectionError(error instanceof Error ? error.message : 'Failed to connect additional wallet')
     }
   }
 
@@ -133,7 +134,7 @@ export function WalletConnection() {
       try {
         await connect({ connector: wallet.connector })
         setActiveWalletIndex(walletIndex)
-      } catch (error: any) {
+      } catch (error: Error | unknown) {
         console.error('Switch wallet error:', error)
         setConnectionError('Failed to switch to wallet')
       }
@@ -145,7 +146,7 @@ export function WalletConnection() {
       // Disconnect specific wallet
       const wallet = connectedWallets[walletIndex]
       if (wallet) {
-        const updatedWallets = connectedWallets.filter((_, index) => index !== walletIndex)
+        const updatedWallets = connectedWallets.filter((_wallet, index) => index !== walletIndex)
         setConnectedWallets(updatedWallets)
         
         // If disconnecting active wallet, switch to first available or disconnect all
@@ -170,9 +171,9 @@ export function WalletConnection() {
 
   const handleSwitchNetwork = async (targetChainId: number) => {
     try {
-      await switchChain({ chainId: targetChainId })
+      await switchChain({ chainId: targetChainId as 1 | 11155111 | 137 | 42161 | 16602 })
       setConnectionError(null)
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Network switch error:', error)
       setConnectionError('Failed to switch network')
     }
@@ -226,7 +227,6 @@ export function WalletConnection() {
 
   if (isConnected && address) {
     const walletMeta = getWalletMetadata(connector?.name || '')
-    const activeWallet = connectedWallets[activeWalletIndex]
     
     return (
       <div className="vintage-card shadow-vintage p-8">
