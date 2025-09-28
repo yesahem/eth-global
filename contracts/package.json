@@ -1,0 +1,35 @@
+{
+  "name": "contracts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:localhost": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:sepolia": "bun run scripts/deploy-standalone.js",
+    "deploy:0g": "bun run scripts/deploy-0g-enhanced.js",
+    "deploy:0g:quick": "bun run scripts/deploy-0g-quick.js",
+    "verify": "hardhat run scripts/verify.js --network sepolia",
+    "node": "hardhat node"
+  },
+  "devDependencies": {
+    "@openzeppelin/contracts": "^5.4.0",
+    "@types/bun": "latest",
+    "@types/chai": "^4.2.0",
+    "@types/mocha": ">=10.0.10",
+    "@types/node": "^22.8.5",
+    "chai": "^5.1.2",
+    "ethers": "^6.14.0",
+    "hardhat": "^3.0.6",
+    "mocha": "^11.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "~5.8.0"
+  },
+  "dependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "@nomiclabs/hardhat-etherscan": "^3.1.8",
+    "dotenv": "^17.2.2"
+  }
+}
