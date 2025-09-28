@@ -7,21 +7,21 @@ pragma solidity ^0.8.24;
  */
 library MemoryAccessControl {
     // Custom errors
-    error InsufficientETHBalance(address reader, uint256 balance, uint256 required);
+    error InsufficientTokenBalance(address reader, uint256 balance, uint256 required);
     error EmptyMemoryHash();
     error NoMemoriesFound(address agent);
     error MemoryIndexOutOfBounds(address agent, uint256 index, uint256 length);
     error InvalidAgent();
 
     /**
-     * @dev Validates if the caller has sufficient ETH balance
+     * @dev Validates if the caller has sufficient 0G token balance
      * @param caller The address to check balance for
-     * @param minBalance The minimum required balance
+     * @param minBalance The minimum required balance in 0G tokens
      */
-    function validateETHBalance(address caller, uint256 minBalance) internal view {
+    function validateTokenBalance(address caller, uint256 minBalance) internal view {
         uint256 callerBalance = caller.balance;
         if (callerBalance < minBalance) {
-            revert InsufficientETHBalance(caller, callerBalance, minBalance);
+            revert InsufficientTokenBalance(caller, callerBalance, minBalance);
         }
     }
 
@@ -76,7 +76,7 @@ library MemoryAccessControl {
      * @dev Comprehensive access validation for reading operations
      * @param caller The address requesting access
      * @param agent The agent whose memories are being accessed
-     * @param minBalance The minimum ETH balance required
+     * @param minBalance The minimum 0G token balance required
      * @param memoryCount The number of memories the agent has
      */
     function validateReadAccess(
@@ -86,7 +86,7 @@ library MemoryAccessControl {
         uint256 memoryCount
     ) internal view {
         validateAgent(agent);
-        validateETHBalance(caller, minBalance);
+        validateTokenBalance(caller, minBalance);
         validateHasMemories(agent, memoryCount);
     }
 
